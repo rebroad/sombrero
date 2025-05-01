@@ -370,7 +370,7 @@ void PS_Sombrero(bool vd_effect_enabled, bool sideview_effect_enabled, float2 sr
     }
 
     // Step 3
-    if (sideview_effect_enabled) texcoord = applySideviewTransform(texcoord);
+    if (sideview_effect_enabled && !banner_visible) texcoord = applySideviewTransform(texcoord);
 
     // Step 4
     if (banner_visible) {
