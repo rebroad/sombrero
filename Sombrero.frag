@@ -213,7 +213,7 @@ float2 applySideviewTransform(float2 texcoord) {
  *      an x-coordinate of 0.6 takes up 20% of the right half of the screen, so we map it to a value of 0.2).
  * 2. If the screen is not static (i.e. virtual display is being rendered):
  *   a. Map the texture coordinates to a vector. The vector starts at the pivot point in the middle of the wearer's head to the same 
- *      texture-coordinate point on a screen that's at a forward distance described by the north-offset. This is the "look vector."
+ *      texture-coordinate point on a screen at the full, natural screen distance. This is the "look vector."
  *      The look vector is technically two vectors tip-to-tail, but for simplicity we keep them as one until after rotation: 
  *        (1) a vector going from the pivot point in the middle of the wearer's head to the lens ("lens vector"). Since this is based
  *            on real-world physical properties of the glasses, we should be careful to keep its magnitude fixed.
@@ -240,7 +240,7 @@ float2 applySideviewTransform(float2 texcoord) {
  * 6. Inspect the final texture coordinates to ensure they fall within the sample-able bounds of the screen texture. If not, set the color 
  *    to black, otherwise use the coordinates to sample the screen texture.
  */
-void PS_Sombrero(bool vd_effect_enabled, bool sideview_effect_enabled, float2 src_dsp_ratio, bool banner_visible, float2 texcoord, out float4 color) {
+void PS_Sombrero(bool vd_effect_enabled, bool sideview_effect_enabled, float2 src_dsp_ratio, float2 texcoord, out float4 color) {
     if (!vd_effect_enabled && !sideview_effect_enabled) {
         color = SAMPLE_TEXTURE(screenTexture, texcoord);
         return;
@@ -264,6 +264,7 @@ void PS_Sombrero(bool vd_effect_enabled, bool sideview_effect_enabled, float2 sr
 
     // Step 2
     bool looking_away = false;
+    bool banner_visible = (sideview_effect_enabled || vd_effect_enabled) && show_banner;
     if (vd_effect_enabled && !banner_visible) {
         // Step 2.a
         float vec_y = -texcoord.x * fov_widths.x + fov_half_widths.x;
@@ -295,10 +296,9 @@ void PS_Sombrero(bool vd_effect_enabled, bool sideview_effect_enabled, float2 sr
 
         // Step 2.d
         float3 lens_look_vector = rotated_look_vector - final_lens_position;
-
-        looking_away = lens_look_vector.x < 0.0;
         
         float display_distance = display_north_offset - final_lens_position.x;
+        looking_away = (lens_look_vector.x < 0.0) != (display_distance < 0.0);
 
         // for sideview, we want the display size to reverse the effect of the distance so it's always "full screen" prior 
         // to applying the sideview adjustment
@@ -432,9 +432,8 @@ void PS_Sombrero(bool vd_effect_enabled, bool sideview_effect_enabled, float2 sr
             source_resolution.x /= 2.0;
 
         float2 src_dsp_ratio = source_resolution / display_resolution;
-        bool banner_visible = any_effect_enabled && all(pose_orientation[0] == imu_reset_data) && all(pose_orientation[1] == imu_reset_data);
 
-        PS_Sombrero(vd_effect_enabled, sideview_effect_enabled, src_dsp_ratio, banner_visible, texcoord, color);
+        PS_Sombrero(vd_effect_enabled, sideview_effect_enabled, src_dsp_ratio, texcoord, color);
     }
 
     technique Transform < enabled = true; >
